@@ -1,0 +1,3 @@
+module/* /usr/share/pyshared/shinken/modules/livestatus
+doc/* /usr/share/doc/shinken-module-livestatus
+etc/* /etc/shinken
