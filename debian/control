@@ -14,6 +14,8 @@ Package: shinken-module-livestatus
 Architecture: any
 Depends: ${misc:Depends}, shinken-common
 Breaks: shinken (<< 2~), shinken-common (<< 2~), shinken-core (<< 2~)
+Conflicts: shinken-module-broker-livestatus
+Replaces: shinken-module-broker-livestatus
 Description: Shinken livestatus module
  Livestatus module for shinken
  .
