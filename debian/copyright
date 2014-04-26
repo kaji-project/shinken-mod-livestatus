@@ -1,5 +1,5 @@
 Format: http://www.debian.org/doc/packaging-manuals/copyright-format/1.0/
-Upstream-Name: shinken-module-broker-livestatus
+Upstream-Name: shinken-module-livestatus
 Source: https://github.com/shinken-monitoring/mod-livestatus
 
 
