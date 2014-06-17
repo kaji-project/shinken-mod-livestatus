@@ -1,3 +1,11 @@
+shinken-module-livestatus (1.0-2) unstable; urgency=medium
+
+  * Change default module name
+  * Fix debian/install file
+  * Add logstore-sqlite as recommend
+
+ -- Thibault Cohen <thibault.cohen@savoirfairelinux.com>  Tue, 17 Jun 2014 07:37:57 -0400
+
 shinken-module-livestatus (1.0-1) unstable; urgency=medium
 
   * New upstream version 1.0
