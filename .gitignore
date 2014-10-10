@@ -39,7 +39,7 @@ nosetests.xml
 .pydevproject
 
 # Vim
-.swp
+*.swp
 
 # Quilt
 .pc
