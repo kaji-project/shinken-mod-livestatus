@@ -1,5 +1,5 @@
 Name:		shinken-mod-livestatus
-Version:	1.4.1
+Version:	1.0.1
 Release:	2kaji0.2
 Summary:	Shinken Module Livestatus for Broker
 
@@ -39,8 +39,7 @@ install -pm0755 etc/modules/* %{buildroot}/etc/shinken/modules
 /usr/share/pyshared/shinken/modules/livestatus
 %config(noreplace) %{_sysconfdir}/shinken/modules/
 
-%docdir
-%{_docdir}/%{name}
+%doc %{_docdir}/%{name}/*
 
 
 %changelog
