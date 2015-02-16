@@ -1,5 +1,4 @@
 #!/usr/bin/python
-
 # -*- coding: utf-8 -*-
 
 # Copyright (C) 2009-2012:
@@ -27,11 +26,32 @@ import time
 import traceback
 import cStringIO
 
-from livestatus_counters import LiveStatusCounters
-from livestatus_request import LiveStatusRequest
-from livestatus_response import LiveStatusResponse
-from livestatus_query import LiveStatusQueryError
 from shinken.log import logger
+
+from .livestatus_counters import LiveStatusCounters
+from .livestatus_request import LiveStatusRequest
+from .livestatus_response import LiveStatusResponse
+from .livestatus_query_error import LiveStatusQueryError
+
+
+_VALID_QUERIES_TYPE_SORTED = (
+    # used in handle_request() to validate the components we get in one query/request.
+    # each inner tuple is sorted alphabetically: command < query < wait
+    ('command', ),  # there can be multiple commands also, special cased below..
+    ('query', ),
+    ('query', 'wait', ),
+    ('command', 'query', ),
+    ('command', 'query', 'wait', ),
+)
+
+
+def _is_valid_queries(queries_type):
+    assert isinstance(queries_type, tuple)
+    return (
+        queries_type in _VALID_QUERIES_TYPE_SORTED
+        # special case: we accept one or many commands, in one request:
+        or all(qtype == 'command' for qtype in queries_type)
+    )
 
 
 class LiveStatus(object):
@@ -39,104 +59,82 @@ class LiveStatus(object):
 
     """
 
-    def __init__(self, datamgr, query_cache, db, pnp_path, return_queue):
+    def __init__(self, datamgr, query_cache, db, pnp_path, return_queue, counters=None):
         self.datamgr = datamgr
         self.query_cache = query_cache
         self.db = db
         self.pnp_path = pnp_path
         self.return_queue = return_queue
-        self.counters = LiveStatusCounters()
+        if counters is None:
+            counters = LiveStatusCounters()
+        self.counters = counters
 
     def handle_request(self, data):
         try:
             return self.handle_request_and_fail(data)
-        except LiveStatusQueryError, exp:
+        except LiveStatusQueryError as err:
             # LiveStatusQueryError(404, table)
             # LiveStatusQueryError(450, column)
-            code, detail = exp.args
-            response = LiveStatusResponse()
-            response.output = LiveStatusQueryError.messages[code] % detail
-            response.statuscode = code
-            if 'fixed16' in data:
-                response.responseheader = 'fixed16'
-            return response.respond()
-        except Exception, exp:
-            logger.error("[Livestatus] Exception! %s" % exp)
+            code, output = err.args
+        except Exception as err:
+            logger.error("[Livestatus] Unexpected error during process of request %r : %s",
+                         data, err)
             # Also show the exception
-            output = cStringIO.StringIO()
-            traceback.print_exc(file=output)
-            logger.error("[Livestatus] Back trace of this exception: %s" % (output.getvalue()))
-            output.close()
-            # Ok now we can return something
-            response = LiveStatusResponse()
-            response.output = LiveStatusQueryError.messages[452] % data
-            response.statuscode = 452
-            if 'fixed16' in data:
-                response.responseheader = 'fixed16'
-            return response.respond()
+            trb = traceback.format_exc()
+            logger.error("[Livestatus] Back trace of this exception: %s", trb)
+            code = 500
+            output = err
+        # Ok now we can return something
+        response = LiveStatusResponse()
+        response.set_error(code, output)
+        if 'fixed16' in data:
+            response.responseheader = 'fixed16'
+        return response.respond()
 
     def handle_request_and_fail(self, data):
         """Execute the livestatus request.
 
-        This function creates a LiveStatusRequest method, calls the parser,
+        This function creates a LiveStatusRequest instance, calls the parser,
         handles the execution of the request and formatting of the result.
-
         """
-        request = LiveStatusRequest(data, self.datamgr, self.query_cache, self.db, self.pnp_path, self.return_queue, self.counters)
+        request = LiveStatusRequest(data, self.datamgr, self.query_cache, self.db,
+                                    self.pnp_path, self.return_queue, self.counters)
         request.parse_input(data)
-        if sorted([q.my_type for q in request.queries]) == ['command', 'query', 'wait']:
-            # The Multisite way
-            for query in [q for q in request.queries if q.my_type == 'command']:
-                result = query.launch_query()
-                response = query.response
-                response.format_live_data(result, query.columns, query.aliases)
-                output, keepalive = response.respond()
-            output = [q for q in request.queries if q.my_type == 'wait'] + [q for q in request.queries if q.my_type == 'query']
-        elif sorted([q.my_type for q in request.queries]) == ['query', 'wait']:
-            # The Thruk way
-            output = [q for q in request.queries if q.my_type == 'wait'] + [q for q in request.queries if q.my_type == 'query']
-            keepalive = True
-        elif sorted([q.my_type for q in request.queries]) == ['command', 'query']:
-            for query in [q for q in request.queries if q.my_type == 'command']:
-                result = query.launch_query()
-                response = query.response
-                response.format_live_data(result, query.columns, query.aliases)
-                output, keepalive = response.respond()
-            for query in [q for q in request.queries if q.my_type == 'query']:
-                # This was a simple query, respond immediately
-                result = query.launch_query()
-                # Now bring the retrieved information to a form which can be sent back to the client
-                response = query.response
-                response.format_live_data(result, query.columns, query.aliases)
-                output, keepalive = response.respond()
+        # sort alphabetically on the query type :
+        queries = sorted(request.queries, key=lambda q: q.my_type)
+        # have to tuple it for testing with 'in' in _is_valid_queries() just after:
+        queries_type = tuple(query.my_type for query in queries)
+        if not _is_valid_queries(queries_type):
+            logger.error("[Livestatus] We currently do not handle this kind "
+                         "of composed request: %s", queries_type)
+            return '', False
 
-        elif sorted([q.my_type for q in request.queries]) == ['query']:
-            for query in [q for q in request.queries if q.my_type == 'query']:
-                # This was a simple query, respond immediately
-                result = query.launch_query()
-                # Now bring the retrieved information to a form which can be sent back to the client
-                response = query.response
-                response.format_live_data(result, query.columns, query.aliases)
-                output, keepalive = response.respond()
-        elif sorted([q.my_type for q in request.queries]) == ['command']:
-            for query in [q for q in request.queries if q.my_type == 'command']:
-                result = query.launch_query()
-                response = query.response
-                response.format_live_data(result, query.columns, query.aliases)
-                output, keepalive = response.respond()
-        elif [q.my_type for q in request.queries if q.my_type != 'command'] == []:
-            # Only external commands. Thruk uses it when it sends multiple
-            # objects into a downtime.
-            for query in [q for q in request.queries if q.my_type == 'command']:
-                result = query.launch_query()
-                response = query.response
-                response.format_live_data(result, query.columns, query.aliases)
-                output, keepalive = response.respond()
+        cur_idx = 0
+        keepalive = False
+
+        for query in queries:  # process the command(s), if any.
+            # as they are sorted alphabetically, once we get one which isn't a 'command'..
+            if query.my_type != 'command':
+                break   # then we are done.
+            query.process_query()
+            # according to Check_Mk, COMMAND doesn't require a response (argh!),
+            # that is no response or more simply: an empty response:
+            output = ''
+            cur_idx += 1
+
+        if 'wait' in queries_type:
+            keepalive = True
+            # we return  'wait' first and 'query' second..
+            output = list(reversed(queries[cur_idx:]))
+        elif len(queries[cur_idx:]):
+            # last possibility :
+            assert (
+                1 == len(queries[cur_idx:])
+                and query == queries[cur_idx] and query.my_type == 'query'
+            )
+            output, keepalive = query.process_query()
         else:
-            # We currently do not handle this kind of composed request
-            output = ""
-            logger.error("[Livestatus] We currently do not handle this kind of composed request")
-            print sorted([q.my_type for q in request.queries])
+            output = ''  # no command, query, or anything could be parsed from the input data.
 
         logger.debug("[Livestatus] Request duration %.4fs" % (time.time() - request.tic))
         return output, keepalive

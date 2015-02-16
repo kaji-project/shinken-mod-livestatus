@@ -1,5 +1,4 @@
 #!/usr/bin/python
-
 # -*- coding: utf-8 -*-
 
 # Copyright (C) 2009-2012:
@@ -40,15 +39,18 @@ from shinken.objects.command import Command
 from shinken.objects.config import Config
 from shinken.downtime import Downtime
 from shinken.comment import Comment
+
+# TODO : in some later version, change those import to new package path of these XxxLink classes:
+ # from shinken.objects.schedulerlink import SchedulerLink
 from shinken.schedulerlink import SchedulerLink
 from shinken.reactionnerlink import ReactionnerLink
 from shinken.brokerlink import BrokerLink
 from shinken.receiverlink import ReceiverLink
 from shinken.pollerlink import PollerLink
+
 from shinken.log import logger
 from log_line import LOGCLASS_INFO, LOGCLASS_ALERT, LOGCLASS_PROGRAM, LOGCLASS_NOTIFICATION, LOGCLASS_PASSIVECHECK, LOGCLASS_COMMAND, LOGCLASS_STATE, LOGCLASS_INVALID, LOGCLASS_ALL, LOGOBJECT_INFO, LOGOBJECT_HOST, LOGOBJECT_SERVICE, LOGOBJECT_CONTACT, Logline, LoglineWrongFormat
-from shinken.external_command import MODATTR_NONE, MODATTR_NOTIFICATIONS_ENABLED, MODATTR_ACTIVE_CHECKS_ENABLED, MODATTR_PASSIVE_CHECKS_ENABLED, MODATTR_EVENT_HANDLER_ENABLED, MODATTR_FLAP_DETECTION_ENABLED, MODATTR_FAILURE_PREDICTION_ENABLED, MODATTR_PERFORMANCE_DATA_ENABLED, MODATTR_OBSESSIVE_HANDLER_ENABLED, MODATTR_EVENT_HANDLER_COMMAND, MODATTR_CHECK_COMMAND, MODATTR_NORMAL_CHECK_INTERVAL, MODATTR_RETRY_CHECK_INTERVAL, MODATTR_MAX_CHECK_ATTEMPTS, MODATTR_FRESHNESS_CHECKS_ENABLED, MODATTR_CHECK_TIMEPERIOD, MODATTR_CUSTOM_VARIABLE, MODATTR_NOTIFICATION_TIMEPERIOD
-
+from shinken.misc.common import DICT_MODATTR
 
 class Problem:
     def __init__(self, source, impacts):
@@ -57,36 +59,18 @@ class Problem:
 
 
 def modified_attributes_names(self):
-    names_list = []
-    names = {
-        MODATTR_NOTIFICATIONS_ENABLED: 'notifications_enabled',
-        MODATTR_ACTIVE_CHECKS_ENABLED: 'active_checks_enabled',
-        MODATTR_PASSIVE_CHECKS_ENABLED: 'passive_checks_enabled',
-        MODATTR_EVENT_HANDLER_ENABLED: 'event_handler_enabled',
-        MODATTR_FLAP_DETECTION_ENABLED: 'flap_detection_enabled',
-        MODATTR_FAILURE_PREDICTION_ENABLED: 'failure_prediction_enabled',
-        MODATTR_PERFORMANCE_DATA_ENABLED: 'performance_data_enabled',
-        MODATTR_OBSESSIVE_HANDLER_ENABLED: 'obsessive_handler_enabled',
-        MODATTR_EVENT_HANDLER_COMMAND: 'event_handler_command',
-        MODATTR_CHECK_COMMAND: 'check_command',
-        MODATTR_NORMAL_CHECK_INTERVAL: 'normal_check_interval',
-        MODATTR_RETRY_CHECK_INTERVAL: 'retry_check_interval',
-        MODATTR_MAX_CHECK_ATTEMPTS: 'max_check_attempts',
-        MODATTR_FRESHNESS_CHECKS_ENABLED: 'freshness_checks_enabled',
-        MODATTR_CHECK_TIMEPERIOD: 'check_timeperiod',
-        MODATTR_CUSTOM_VARIABLE: 'custom_variable',
-        MODATTR_NOTIFICATION_TIMEPERIOD: 'notification_timeperiod',
-    }
-    for attr in [MODATTR_NONE, MODATTR_NOTIFICATIONS_ENABLED, MODATTR_ACTIVE_CHECKS_ENABLED, MODATTR_PASSIVE_CHECKS_ENABLED, MODATTR_EVENT_HANDLER_ENABLED, MODATTR_FLAP_DETECTION_ENABLED, MODATTR_FAILURE_PREDICTION_ENABLED, MODATTR_PERFORMANCE_DATA_ENABLED, MODATTR_OBSESSIVE_HANDLER_ENABLED, MODATTR_EVENT_HANDLER_COMMAND, MODATTR_CHECK_COMMAND, MODATTR_NORMAL_CHECK_INTERVAL, MODATTR_RETRY_CHECK_INTERVAL, MODATTR_MAX_CHECK_ATTEMPTS, MODATTR_FRESHNESS_CHECKS_ENABLED, MODATTR_CHECK_TIMEPERIOD, MODATTR_CUSTOM_VARIABLE, MODATTR_NOTIFICATION_TIMEPERIOD]:
-        if self.modified_attributes & attr:
-            names_list.append(names[attr])
-    return names_list
+    names_list = set()
+
+    for attr in DICT_MODATTR:
+        if self.modified_attributes & DICT_MODATTR[attr].value:
+            names_list.add(DICT_MODATTR[attr].attribute)
+    return list(names_list)
 
 
 def join_with_separators(request, *args):
     if request.response.outputformat == 'csv':
         try:
-            return request.response.separators[3].join([str(arg) for arg in args])
+            return request.response.separators.pipe.join([str(arg) for arg in args])
         except Exception, e:
             logger.error("[Livestatus Broker Mapping] Bang Error: %s" % e)
     elif request.response.outputformat == 'json' or request.response.outputformat == 'python':
@@ -124,9 +108,9 @@ def find_pnp_perfdata_xml(name, request):
         if '/' in name:
             # It is a service
 
-	    # replace space, colon, slash and backslash to be PNP compliant
-	    name = name.split('/', 1)
-	    name[1] = re.sub(r'[ :\/\\]', '_', name[1])
+            # replace space, colon, slash and backslash to be PNP compliant
+            name = name.split('/', 1)
+            name[1] = re.sub(r'[ :\/\\]', '_', name[1])
 
             if os.access(request.pnp_path + '/' + '/'.join(name) + '.xml', os.R_OK):
                 return 1
@@ -162,7 +146,7 @@ def get_livestatus_full_name(item, req):
     cls_name = item.__class__.my_type
     if req.response.outputformat == 'csv':
         if cls_name == 'service':
-            return item.host_name + req.response.separators[3] + item.service_description
+            return item.host_name + req.response.separators.pipe + item.service_description
         else:
             return item.host_name
     elif req.response.outputformat == 'json' or req.response.outputformat == 'python':
@@ -294,7 +278,7 @@ livestatus_attribute_map = {
         },
         'contact_groups': {
             'description': 'A list of all contact groups this host is in',
-            'function': lambda item, req: item.contact_groups.split(','),
+            'function': lambda item, req: item.contact_groups,
             'datatype': list,
         },
         'criticity': {
@@ -833,7 +817,7 @@ livestatus_attribute_map = {
         },
         'contact_groups': {
             'description': 'A list of all contact groups this service is in',
-            'function': lambda item, req: item.contact_groups.split(','),
+            'function': lambda item, req: item.contact_groups,
             'datatype': list,
         },
         'criticity': {

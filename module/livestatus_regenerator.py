@@ -1,5 +1,4 @@
 #!/usr/bin/python
-
 # -*- coding: utf-8 -*-
 
 # Copyright (C) 2009-2012:
@@ -128,7 +127,7 @@ def itersorted(self, hints=None):
 
 class LiveStatusRegenerator(Regenerator):
     def __init__(self, service_authorization_strict=False, group_authorization_strict=True):
-        super(self.__class__, self).__init__()
+        super(LiveStatusRegenerator, self).__init__()
         self.service_authorization_strict = service_authorization_strict
         self.group_authorization_strict = group_authorization_strict
 
@@ -137,7 +136,7 @@ class LiveStatusRegenerator(Regenerator):
 
         # We will relink all objects if need. If we are in a scheduler, this function will just bailout
         # because it's not need :)
-        super(self.__class__, self).all_done_linking(inst_id)
+        super(LiveStatusRegenerator, self).all_done_linking(inst_id)
 
         # now sort the item collections by name
         safe_print("SORTING HOSTS AND SERVICES")
@@ -292,7 +291,7 @@ class LiveStatusRegenerator(Regenerator):
             safe_print("Creating Contact:", cname)
             c = Contact({})
             self.update_element(c, data)
-            self.contacts[c.id] = c
+            self.contacts.add_item(c)
 
         # Now manage notification ways too
         # Same than for contacts. We create or
@@ -306,7 +305,7 @@ class LiveStatusRegenerator(Regenerator):
             if not nw:
                 safe_print("Creating notif way", nwname)
                 nw = NotificationWay([])
-                self.notificationways[nw.id] = nw
+                self.notificationways.add_item(nw)
             # Now update it
             for prop in NotificationWay.properties:
                 if hasattr(cnw, prop):
@@ -323,11 +322,6 @@ class LiveStatusRegenerator(Regenerator):
             self.linkify_a_timeperiod(nw, 'service_notification_period')
 
         c.notificationways = new_notifways
-
-        # Ok, declare this contact now :)
-        # And notif ways too
-        self.contacts.create_reversed_list()
-        self.notificationways.create_reversed_list()
 
     def register_cache(self, cache):
         self.cache = cache

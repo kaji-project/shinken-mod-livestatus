@@ -26,23 +26,24 @@
 # This file is used to test host- and service-downtimes.
 #
 
-from shinken_modules import *
 import os
-import re
-import subprocess
-import shutil
+import sys
 import time
 import random
-import copy
 
-from shinken.brok import Brok
-from shinken.objects.timeperiod import Timeperiod
-from shinken.objects.module import Module
+from shinken_test import unittest
+
+from shinken_modules import TestConfig
 from shinken.comment import Comment
-from shinken.util import from_bool_to_int
+
+from mock_livestatus import mock_livestatus_handle_request
+
 
 sys.setcheckinterval(10000)
 
+
+
+@mock_livestatus_handle_request
 class TestConfigBig(TestConfig):
     def setUp(self):
         start_setUp = time.time()
@@ -98,7 +99,7 @@ OutputFormat: python
         negpyresponse = eval(response)
         print len(negpyresponse)
         # only test_ok_00 + without test_ok_00 must be all services
-        self.assert_(len(allpyresponse) == len(pyresponse) + len(negpyresponse))
+        self.assertEqual(len(pyresponse) + len(negpyresponse), len(allpyresponse) )
 
         query = """GET hosts
 Columns: host_name num_services
@@ -118,7 +119,7 @@ OutputFormat: python
 """
         response, keepalive = self.livestatus_broker.livestatus.handle_request(query)
         numsvcwithout = eval(response)
-        self.assert_(numsvc[0][1] - 1 == len(numsvcwithout))
+        self.assertEqual(len(numsvcwithout), numsvc[0][1] - 1 )
 
     def test_worst_service_state(self):
         # test_host_005 is in hostgroup_01
@@ -147,7 +148,7 @@ OutputFormat: python
         hg_response, keepalive = self.livestatus_broker.livestatus.handle_request(hg_request)
         print "ho_reponse", h_response
         print "hg_reponse", hg_response
-        self.assert_(h_response == hg_response)
+        self.assertEqual(hg_response, h_response )
         self.assert_(h_response == """0;0;0;0;0
 """)
 
@@ -159,7 +160,7 @@ OutputFormat: python
         self.update_broker()
         h_response, keepalive = self.livestatus_broker.livestatus.handle_request(h_request)
         hg_response, keepalive = self.livestatus_broker.livestatus.handle_request(hg_request)
-        self.assert_(h_response == hg_response)
+        self.assertEqual(hg_response, h_response )
         self.assert_(h_response == """1;0;0;1;0
 """)
 
@@ -171,7 +172,7 @@ OutputFormat: python
         self.update_broker()
         h_response, keepalive = self.livestatus_broker.livestatus.handle_request(h_request)
         hg_response, keepalive = self.livestatus_broker.livestatus.handle_request(hg_request)
-        self.assert_(h_response == hg_response)
+        self.assertEqual(hg_response, h_response )
         self.assert_(h_response == """1;1;0;2;0
 """)
 
@@ -183,7 +184,7 @@ OutputFormat: python
         self.update_broker()
         h_response, keepalive = self.livestatus_broker.livestatus.handle_request(h_request)
         hg_response, keepalive = self.livestatus_broker.livestatus.handle_request(hg_request)
-        self.assert_(h_response == hg_response)
+        self.assertEqual(hg_response, h_response )
         self.assert_(h_response == """1;1;0;2;1
 """)
 
@@ -195,14 +196,12 @@ OutputFormat: python
         self.update_broker()
         h_response, keepalive = self.livestatus_broker.livestatus.handle_request(h_request)
         hg_response, keepalive = self.livestatus_broker.livestatus.handle_request(hg_request)
-        self.assert_(h_response == hg_response)
+        self.assertEqual(hg_response, h_response )
         self.assert_(h_response == """1;1;0;2;2
 """)
 
     def test_stats(self):
         self.print_header()
-        if self.nagios_installed():
-            self.start_nagios('5r_100h_2000s')
         now = time.time()
         objlist = []
         for host in self.sched.hosts:
@@ -235,17 +234,11 @@ Stats: state = 2
 Stats: state = 3"""
         response, keepalive = self.livestatus_broker.livestatus.handle_request(request)
         print 'query_6_______________\n%s\n%s\n' % (request, response)
-        self.assert_(response == '2000;1993;3;3;1\n')
+        self.assertEqual('2000;1993;3;3;1\n', response )
 
-        if self.nagios_installed():
-            nagresponse = self.ask_nagios(request)
-            print nagresponse
-            self.assert_(self.lines_equal(response, nagresponse))
 
     def test_statsgroupby(self):
         self.print_header()
-        if self.nagios_installed():
-            self.start_nagios('5r_100h_2000s')
         now = time.time()
         objlist = []
         for host in self.sched.hosts:
@@ -287,15 +280,9 @@ StatsGroupBy: state
         self.assert_(self.contains_line(response, '1;3'))
         self.assert_(self.contains_line(response, '2;3'))
         self.assert_(self.contains_line(response, '3;1'))
-        if self.nagios_installed():
-            nagresponse = self.ask_nagios(request)
-            print nagresponse
-            self.assert_(self.lines_equal(response, nagresponse))
 
     def test_hostsbygroup(self):
         self.print_header()
-        if self.nagios_installed():
-            self.start_nagios('5r_100h_2000s')
         now = time.time()
         objlist = []
         for host in self.sched.hosts:
@@ -314,15 +301,10 @@ ResponseHeader: fixed16
 
         response, keepalive = self.livestatus_broker.livestatus.handle_request(request)
         print response
-        if self.nagios_installed():
-            nagresponse = self.ask_nagios(request)
-            print nagresponse
-            self.assert_(self.lines_equal(response, nagresponse))
+        # TODO
 
     def test_servicesbyhostgroup(self):
         self.print_header()
-        if self.nagios_installed():
-            self.start_nagios('5r_100h_2000s')
         now = time.time()
         objlist = []
         for host in self.sched.hosts:
@@ -401,10 +383,7 @@ ResponseHeader: fixed16
         tac = time.clock()
         print "livestatus duration %f" % (tac - tic)
         print response
-        if self.nagios_installed():
-            nagresponse = self.ask_nagios(request)
-            print nagresponse
-            self.assert_(self.lines_equal(response, nagresponse))
+        # TODO
 
         # Again, without Filter:
         request = """GET servicesbyhostgroup
@@ -473,14 +452,9 @@ ResponseHeader: fixed16
 """
         response, keepalive = self.livestatus_broker.livestatus.handle_request(request)
         print response
-        if self.nagios_installed():
-            nagresponse = self.ask_nagios(request)
-            print nagresponse
-            self.assert_(self.lines_equal(response, nagresponse))
+        # TODO
 
     def test_childs(self):
-        if self.nagios_installed():
-            self.start_nagios('5r_100h_2000s')
         self.print_header()
         now = time.time()
         objlist = []
@@ -499,11 +473,8 @@ ResponseHeader: fixed16
 """
         response, keepalive = self.livestatus_broker.livestatus.handle_request(request)
         print response
-        if self.nagios_installed():
-            nagresponse = self.ask_nagios(request)
-            print "nagresponse----------------------------------------------"
-            print nagresponse
-            self.assert_(self.lines_equal(response, nagresponse))
+        # TODO
+
         request = """GET hosts
 Columns: childs
 Filter: name = test_router_0
@@ -513,11 +484,7 @@ ResponseHeader: fixed16
 """
         response, keepalive = self.livestatus_broker.livestatus.handle_request(request)
         print response
-        if self.nagios_installed():
-            nagresponse = self.ask_nagios(request)
-            print "nagresponse----------------------------------------------"
-            print nagresponse
-            self.assert_(self.lines_equal(response, nagresponse))
+        # TODO
 
     def test_thruk_servicegroup(self):
         self.print_header()
@@ -538,7 +505,7 @@ ResponseHeader: fixed16
         # 400 services => 400 lines + header + empty last line
         response, keepalive = self.livestatus_broker.livestatus.handle_request(request)
         print "r1", response
-        self.assert_(len(response.split("\n")) == 402)
+        self.assertEqual(402, len(response.split("\n")) )
 
         request = """GET servicegroups
 Columns: name members
@@ -551,12 +518,10 @@ OutputFormat: csv
         response, keepalive = self.livestatus_broker.livestatus.handle_request(request)
         print "r2", response
         # take first line, take members column, count list elements = 400 services
-        self.assert_(len(((response.split("\n")[0]).split(';')[1]).split(',')) == 400)
+        self.assertEqual(400, len(((response.split("\n")[0]).split(';')[1]).split(',')) )
 
     def test_sorted_limit(self):
         self.print_header()
-        if self.nagios_installed():
-            self.start_nagios('5r_100h_2000s')
         now = time.time()
         objlist = []
         for host in self.sched.hosts:
@@ -595,7 +560,7 @@ OutputFormat: csv
         print "last of live \n(%s)\n--------------\n" % live_sorted[-100:]
         print "last of sssed \n(%s)\n--------------\n" % sched_live_sorted[-100:]
         # But sorted they are the same.
-        self.assert_('\n'.join(sorted(sched_unsorted.split('\n'))) == live_sorted)
+        self.assertEqual(live_sorted, '\n'.join(sorted(sched_unsorted.split('\n'))) )
 
         svc1 = self.sched.services.find_srv_by_name_and_hostname("test_host_005", "test_ok_00")
         print svc1
@@ -622,7 +587,7 @@ Filter: state != 0"""
         # Get all bad services from the scheduler
         sched_bad_unsorted = '\n'.join(["%s;%s;%d" % (s.host_name, s.service_description, s.state_id) for s in self.sched.services if s.state_id != 0])
         # Check if the result of the query is sorted
-        self.assert_('\n'.join(sorted(sched_bad_unsorted.split('\n'))) == response.strip())
+        self.assertEqual(response.strip(), '\n'.join(sorted(sched_bad_unsorted.split('\n'))) )
 
         # Now get the first 3 bad services from livestatus
         request = """GET services
@@ -635,7 +600,7 @@ Filter: state != 0"""
         print 'query_6_______________\n%s\n%s\n' % (request, response)
 
         # Now compare the first 3 bad services with the scheduler data
-        self.assert_('\n'.join(sorted(sched_bad_unsorted.split('\n'))[:3]) == response.strip())
+        self.assertEqual(response.strip(), '\n'.join(sorted(sched_bad_unsorted.split('\n'))[:3]) )
 
         # Now check if all services are sorted when queried with a livestatus request
         request = """GET services
@@ -647,7 +612,7 @@ OutputFormat: csv"""
         sched_bad_unsorted = '\n'.join(["%s;%s;%d" % (s.host_name, s.service_description, s.state_id) for s in self.sched.services])
 
         # Check if the result of the query is sorted
-        ## FIXME LAUSSER self.assert_('\n'.join(sorted(sched_bad_unsorted.split('\n'))) == response.strip())
+        ## FIXME LAUSSER self.assertEqual(response.strip(), '\n'.join(sorted(sched_bad_unsorted.split('\n'))) )
 
 
 
@@ -1199,14 +1164,14 @@ Filter: name = test_router_0
 Columns: name display_name"""
         response, keepalive = self.livestatus_broker.livestatus.handle_request(request)
         print response
-        self.assert_(response == 'test_router_0;display_router_0\n')
+        self.assertEqual('test_router_0;display_router_0\n', response)
         request = """GET services
 Filter: host_name = test_host_000
 Filter: description = test_unknown_00
 Columns: description host_name display_name"""
         response, keepalive = self.livestatus_broker.livestatus.handle_request(request)
         print response
-        self.assert_(response == 'test_unknown_00;test_host_000;display_unknown_00\n')
+        self.assertEqual('test_unknown_00;test_host_000;display_unknown_00\n', response )
 
 if __name__ == '__main__':
     #import cProfile

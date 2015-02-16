@@ -1,14 +1,18 @@
 {
   "name": "livestatus",
   "types": ["module"],
-  "version": "1.0.1",
+  "version": "1.4",
   "homepage": "http://github.com/shinken-monitoring/mod-livestatus",
   "author": "Jean Gabès",
-  "description": "Livestatus module for shinken",
+  "description": "Livestatus module for Shinken",
   "contributors": [
     {
       "name": "Jean Gabès",
       "email": "naparuba@gmail.com"
+    },
+    {
+      "name": "Grégory Starck",
+      "email": "g.starck@gmail.com"
     }
   ],
   "repository": "https://github.com/shinken-monitoring/mod-livestatus",
@@ -20,7 +24,7 @@
     "LQL"
   ],
   "dependencies": {
-    "shinken": ">=1.4"
+    "shinken": ">=2.4"
   },
   "license": "AGPL"
 }
