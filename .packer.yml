@@ -2,7 +2,9 @@ centos_6:
   spec: debian/shinken-mod-livestatus.spec
 centos_7:
   spec: debian/shinken-mod-livestatus.spec
-debian_7:
+debian_8:
   debian: debian
 ubuntu_14.04:
+  debian: debian
+ubuntu_12.04:
   debian: debian
