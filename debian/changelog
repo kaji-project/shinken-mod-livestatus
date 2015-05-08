@@ -1,9 +1,21 @@
+shinken-mod-livestatus (1.4.2-1kaji0.2) unstable; urgency=medium
+
+  * Kaji release
+
+ -- Sebastien Coavoux <sebastien.coavoux@savoirfairelinux.com>  Fri, 08 May 2015 10:29:21 -0400
+
 shinken-mod-livestatus (1.4.2-1) unstable; urgency=medium
 
   [ Sebastien Coavoux ]
   * New upstream version 1.4.2
 
  -- Sebastien Coavoux <sebastien.coavoux@savoirfairelinux.com>  Fri, 08 May 2015 10:29:21 -0400
+
+shinken-mod-livestatus (1.4.1-1kaji0.2) unstable; urgency=medium
+
+  * Kaji release
+
+ -- Thibault Cohen <titilambert@savoirfairelinux.com>  Tue, 21 Apr 2015 17:34:10 -0400
 
 shinken-mod-livestatus (1.4.1-1) unstable; urgency=medium
 

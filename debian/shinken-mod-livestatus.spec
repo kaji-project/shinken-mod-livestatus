@@ -1,6 +1,6 @@
 Name:		shinken-mod-livestatus
-Version:	1.0.1
-Release:	2kaji0.2
+Version:	1.4.1
+Release:	1kaji0.2
 Summary:	Shinken Module Livestatus for Broker
 
 Group:		Network
@@ -43,5 +43,5 @@ install -pm0755 etc/modules/* %{buildroot}/etc/shinken/modules
 
 
 %changelog
-* Wed Jan 21 2015 Sébastien Coavoux <sebastien.coavoux@savoirfairelinux.com> 1.4.1-2kaji0.2
+* Wed Jan 21 2015 Sébastien Coavoux <sebastien.coavoux@savoirfairelinux.com> 1.4.1-1kaji0.2
 - Initial Package
