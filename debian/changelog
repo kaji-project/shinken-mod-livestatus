@@ -1,3 +1,10 @@
+shinken-mod-livestatus (1.4.2-1) unstable; urgency=medium
+
+  [ Sebastien Coavoux ]
+  * New upstream version 1.4.2
+
+ -- Sebastien Coavoux <sebastien.coavoux@savoirfairelinux.com>  Fri, 08 May 2015 10:29:21 -0400
+
 shinken-mod-livestatus (1.4.1-1) unstable; urgency=medium
 
   [ Thibault Cohen ]
